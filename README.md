@@ -1,0 +1,165 @@
+# powerbi-desktop-mcp
+
+CLI tool to automatically download, install and configure the **Power BI Desktop MCP Server** for Claude Desktop and Claude Code.
+
+## Install
+
+```bash
+npm install -g powerbi-desktop-mcp
+```
+
+Or run directly without installing:
+
+```bash
+npx powerbi-desktop-mcp install
+```
+
+## Commands
+
+### Install
+Downloads the MCP server and interactively configures Claude Desktop and/or Claude Code:
+```bash
+# If installed globally
+powerbi-desktop-mcp install
+
+# Or run with npx (no installation required)
+npx powerbi-desktop-mcp install
+```
+
+During installation, you'll be prompted to:
+- **Configure Claude Desktop automatically?** - Adds the MCP server to Claude Desktop's config
+- **Configure Claude Code automatically?** - Adds the MCP server to Claude Code's config
+
+You can choose to configure one, both, or neither (for manual configuration later).
+
+Options:
+```
+-d, --dir <path>          Install directory (default: C:\MCPServers\PowerBIModelingMCP)
+-v, --mcp-version <ver>   MCP version to install (default: 0.1.9)
+-s, --skip-confirmation   Skip confirmation prompts in MCP server
+```
+
+**Note:** If reinstalling, please close Claude Desktop and Claude Code (VS Code) first to avoid file locking issues.
+
+### Status
+Check if the MCP is installed and configured:
+```bash
+# If installed globally
+powerbi-desktop-mcp status
+
+# Or run with npx
+npx powerbi-desktop-mcp status
+```
+
+### Uninstall
+Remove the MCP server and clean up Claude configs:
+```bash
+# If installed globally
+powerbi-desktop-mcp uninstall
+
+# Or run with npx
+npx powerbi-desktop-mcp uninstall
+```
+
+## Requirements
+
+- Windows (win32-x64)
+- Node.js >= 18
+- Power BI Desktop (must be open when using the MCP)
+
+## What it does
+
+1. Downloads `powerbi-modeling-mcp.exe` from VS Code Marketplace
+2. Extracts it to the install directory
+3. **Asks if you want to configure Claude Desktop** - Registers it in `%APPDATA%\Claude\claude_desktop_config.json`
+4. **Asks if you want to configure Claude Code** - Registers it in `%USERPROFILE%\.claude.json`
+
+You have full control over which Claude applications get configured during installation.
+
+## Usage after install
+
+1. Open Power BI Desktop with your model
+2. Restart Claude Desktop or Claude Code
+3. Say: **Connect to [your-file-name] in Power BI Desktop**
+
+## ⚙️ MCP Server Settings
+
+The MCP server supports several command line options and environment variables that can be configured during installation:
+
+### Command Line Options
+
+| Command line option | Default | Description |
+|-------------------|---------|-------------|
+| `--start` | | Starts the MCP server; necessary for server registration with MCP client. |
+| `--readwrite` | Yes | Enabled by default, enables write operations with confirmation prompt before applying an edit to your semantic model (once per database). |
+| `--readonly` | | Safe mode, prevents any write operations to your semantic model. |
+| `--skipconfirmation` | | Automatically approves all write operations without confirmation prompts. Only use skip confirmation mode when you're confident about the operations being performed and have appropriate backups of your semantic model. |
+| `--compatibility` | PowerBI | By default, it is optimized for Power BI semantic models. Change the setting to `Full` if you want to run this MCP server against Analysis Services databases. |
+
+### Environment Variables
+
+| Environment variable name | Default | Description |
+|--------------------------|---------|-------------|
+| `PBI_MODELING_MCP_ACCESS_TOKEN` | | When configured, the MCP Server uses the specified access token instead of prompting for authentication when connecting to a semantic model in a Fabric workspace. This is useful in scenarios where the application handles authentication itself. |
+
+### How to Configure
+
+These settings are automatically configured by this installer with sensible defaults. The `--skipconfirmation` flag can be set during installation using the `-s` option:
+
+```bash
+npx powerbi-desktop-mcp install -s
+```
+
+To manually modify these settings after installation, edit the Claude configuration files:
+- **Claude Desktop**: `%APPDATA%\Claude\claude_desktop_config.json`
+- **Claude Code**: `%USERPROFILE%\.claude.json`
+
+Example configuration:
+```json
+{
+  "mcpServers": {
+    "powerbi-desktop-mcp": {
+      "type": "stdio",
+      "command": "C:\\MCPServers\\PowerBIModelingMCP\\extension\\server\\powerbi-modeling-mcp.exe",
+      "args": ["--start", "--skipconfirmation"],
+      "env": {
+        "PBI_MODELING_MCP_ACCESS_TOKEN": "your-token-here"
+      }
+    }
+  }
+}
+```
+
+## About
+
+This CLI tool automates the installation and configuration of the **Power BI Modeling MCP Server** developed by Microsoft. The MCP server brings Power BI semantic modeling capabilities to AI agents, enabling natural language interactions with Power BI Desktop and Fabric semantic models.
+
+### Official MCP Server
+
+The underlying Power BI Modeling MCP Server is developed and maintained by Microsoft:
+
+- **GitHub Repository**: [microsoft/powerbi-modeling-mcp](https://github.com/microsoft/powerbi-modeling-mcp)
+- **VS Code Extension**: [Power BI Modeling MCP](https://marketplace.visualstudio.com/items?itemName=analysis-services.powerbi-modeling-mcp)
+- **License**: MIT
+
+### What the MCP Server Does
+
+- 🔄 **Build and modify semantic models** with natural language
+- ⚡ **Execute bulk operations** at scale across hundreds of objects
+- ✅ **Apply modeling best practices** to your Power BI models
+- 🤖 **Enable agentic workflows** with TMDL and Power BI Project files
+- 🔍 **Query and validate DAX** against your semantic models
+
+For complete documentation, capabilities, and examples, visit the [official repository](https://github.com/microsoft/powerbi-modeling-mcp).
+
+### What This CLI Does
+
+This `powerbi-desktop-mcp` package simplifies the installation process by:
+1. Automatically downloading the MCP server from VS Code Marketplace
+2. Extracting and setting up the executable
+3. Providing interactive prompts to configure Claude Desktop and/or Claude Code
+4. Managing installation, status checks, and uninstallation
+
+## Contributing
+
+Issues and feature requests for the MCP server itself should be directed to the [official Microsoft repository](https://github.com/microsoft/powerbi-modeling-mcp/issues).

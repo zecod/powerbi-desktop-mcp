@@ -1,0 +1,33 @@
+# NPM ignore - only include what's needed for the package
+
+# Test artifacts
+C:MCPServersPowerBIModelingMCP/
+
+# Development files
+.git/
+.gitignore
+.vscode/
+.idea/
+
+# Documentation (keep README.md)
+docs/
+
+# Test files
+test/
+tests/
+*.test.js
+*.spec.js
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Editor configs
+.editorconfig
+.eslintrc*
+.prettierrc*
+
+# Misc
+.DS_Store
+Thumbs.db
