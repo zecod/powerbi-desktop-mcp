@@ -1,6 +1,12 @@
 # powerbi-desktop-mcp
 
+[![npm version](https://img.shields.io/npm/v/powerbi-desktop-mcp.svg)](https://www.npmjs.com/package/powerbi-desktop-mcp)
+[![npm downloads](https://img.shields.io/npm/dm/powerbi-desktop-mcp.svg)](https://www.npmjs.com/package/powerbi-desktop-mcp)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 CLI tool to automatically download, install and configure the **Power BI Desktop MCP Server** for Claude Desktop and Claude Code.
+
+**npm Package**: https://www.npmjs.com/package/powerbi-desktop-mcp
 
 ## Install
 

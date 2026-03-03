@@ -21,7 +21,15 @@
   "engines": {
     "node": ">=18.0.0"
   },
-  "keywords": ["powerbi", "mcp", "claude", "ai", "semantic-model", "dax"],
+  "keywords": ["powerbi", "power-bi", "mcp", "claude", "ai", "semantic-model", "dax", "modeling", "desktop", "claude-desktop", "mcp-server"],
   "author": "yassi",
-  "license": "MIT"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zecod/powerbi-desktop-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/zecod/powerbi-desktop-mcp/issues"
+  },
+  "homepage": "https://github.com/zecod/powerbi-desktop-mcp#readme"
 }
