@@ -73,7 +73,7 @@ export async function install(options) {
   console.log("");
 
   // ── Download + decompress ────────────────────────────────────
-  const spinner = ora("Downloading powerbi-modeling-mcp...").start();
+  const spinner = ora({ text: "Downloading powerbi-modeling-mcp...", stream: process.stdout }).start();
   try {
     await download(DOWNLOAD_URL(version), tmpZip);
     spinner.succeed(`Downloaded v${version}`);

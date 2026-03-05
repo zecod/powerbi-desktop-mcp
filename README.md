@@ -67,6 +67,42 @@ powerbi-desktop-mcp uninstall
 npx powerbi-desktop-mcp uninstall
 ```
 
+### Extract DAX
+Extract DAX measures and calculated columns from Power BI models.
+
+**Prerequisite:** Power BI Desktop must be running with your file open before running this command.
+
+```bash
+# Extract all DAX from an open Power BI Desktop file
+powerbi-desktop-mcp extract-dax --file "SalesReport"
+
+# Extract from Fabric workspace
+powerbi-desktop-mcp extract-dax --workspace "Sales Workspace" --model "Sales Model"
+
+# Extract only measures, save to a specific path
+powerbi-desktop-mcp extract-dax --file "SalesReport" --type measures --output ./measures.dax
+
+# Extract only calculated columns
+powerbi-desktop-mcp extract-dax --file "SalesReport" --type columns
+
+# Output to stdout
+powerbi-desktop-mcp extract-dax --file "SalesReport" --output stdout
+```
+
+Options:
+```
+-f, --file <name>           Power BI Desktop window title (partial match, case-insensitive)
+-w, --workspace <name>      Fabric workspace name
+-m, --model <name>          Semantic model name (required with --workspace)
+-o, --output <path>         Output file path (default: ./dax-extract.dax)
+-t, --type <type>           Extract type: all, measures, columns (default: all)
+-d, --install-dir <path>    MCP server install directory
+```
+
+**Note:** Either `--file` OR both `--workspace` and `--model` must be specified.
+
+**How `--file` matching works:** The value is matched as a case-insensitive substring against the window title of all running Power BI Desktop instances. For example, `--file "Sales"` will match a window titled `SalesReport - Power BI Desktop`. If no match is found, the error message lists all available window titles so you can pick the right one.
+
 ## Requirements
 
 - Windows (win32-x64)

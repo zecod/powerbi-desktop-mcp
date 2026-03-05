@@ -4,6 +4,7 @@ import { program } from "commander";
 import { install } from "./commands/install.js";
 import { uninstall } from "./commands/uninstall.js";
 import { status } from "./commands/status.js";
+import { extractDax } from "./commands/extractDax.js";
 
 program
   .name("powerbi-desktop-mcp")
@@ -28,5 +29,16 @@ program
   .command("status")
   .description("Check installation status and Claude config")
   .action(status);
+
+program
+  .command("extract-dax")
+  .description("Extract DAX code from Power BI models")
+  .option("-f, --file <name>", "Power BI Desktop file name")
+  .option("-w, --workspace <name>", "Fabric workspace name")
+  .option("-m, --model <name>", "Semantic model name")
+  .option("-o, --output <path>", "Output file path (default: ./dax-extract.dax)")
+  .option("-t, --type <type>", "Extract type: all, measures, columns (default: all)", "all")
+  .option("-d, --install-dir <path>", "MCP server install directory", "C:\\MCPServers\\PowerBIModelingMCP")
+  .action(extractDax);
 
 program.parse();

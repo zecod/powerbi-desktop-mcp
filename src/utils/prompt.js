@@ -42,6 +42,30 @@ export function askYesNo(question, defaultYes = true) {
 }
 
 /**
+ * Ask user for text input with an optional default
+ * @param {string} question - The question to ask
+ * @param {string} defaultValue - Value to use if user enters nothing or spaces
+ * @returns {Promise<string>}
+ */
+export function askInput(question, defaultValue = "") {
+  return new Promise((resolve) => {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout
+    });
+
+    const hint = defaultValue ? chalk.gray(`(default: ${defaultValue})`) : "";
+    const prompt = `${chalk.cyan("?")} ${question} ${hint} `;
+
+    rl.question(prompt, (answer) => {
+      rl.close();
+      const trimmed = answer.trim();
+      resolve(trimmed || defaultValue);
+    });
+  });
+}
+
+/**
  * Ask user to select from multiple options
  * @param {string} question - The question to ask
  * @param {string[]} options - Array of options
