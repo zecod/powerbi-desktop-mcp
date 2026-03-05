@@ -4,6 +4,8 @@ import { program } from "commander";
 import { install } from "./commands/install.js";
 import { uninstall } from "./commands/uninstall.js";
 import { status } from "./commands/status.js";
+import { extractDax } from "./commands/extractDax.js";
+import { translateDax } from "./commands/translateDax.js";
 
 program
   .name("powerbi-desktop-mcp")
@@ -14,7 +16,7 @@ program
   .command("install")
   .description("Download, install and configure powerbi-modeling-mcp")
   .option("-d, --dir <path>", "Install directory", "C:\\MCPServers\\PowerBIModelingMCP")
-  .option("-v, --mcp-version <version>", "MCP version to install", "0.1.9")
+  .option("-v, --mcp-version <version>", "MCP version to install", "0.4.0")
   .option("-s, --skip-confirmation", "Skip confirmation prompts in MCP server")
   .action(install);
 
@@ -28,5 +30,35 @@ program
   .command("status")
   .description("Check installation status and Claude config")
   .action(status);
+
+program
+  .command("extract-dax")
+  .description("Extract DAX code from Power BI models")
+  .option("-f, --file <name>", "Power BI Desktop file name")
+  .option("-w, --workspace <name>", "Fabric workspace name")
+  .option("-m, --model <name>", "Semantic model name")
+  .option("-o, --output <path>", "Output file path (default: ./dax-extract.dax)")
+  .option("-t, --type <type>", "Extract type: all, measures, columns (default: all)", "all")
+  .option("-d, --install-dir <path>", "MCP server install directory", "C:\\MCPServers\\PowerBIModelingMCP")
+  .action(extractDax);
+
+program
+  .command("translate-dax")
+  .description("Translate DAX measures and calculated columns to Qlik Sense QVS")
+  .option("-f, --file <name>", "Power BI Desktop file name")
+  .option("-w, --workspace <name>", "Fabric workspace name")
+  .option("-m, --model <name>", "Semantic model name")
+  .option("-o, --output <path>", "Output .qvs file path (prompted if not set)")
+  .option("-d, --install-dir <path>", "MCP server install directory", "C:\\MCPServers\\PowerBIModelingMCP")
+  .action(translateDax);
+
+program
+  .command("serve")
+  .description("Start the combined Power BI MCP server (Microsoft tools + extract_dax)")
+  .option("-d, --install-dir <path>", "MCP server install directory", "C:\\MCPServers\\PowerBIModelingMCP")
+  .action(async (options) => {
+    const { startServer } = await import("./server.js");
+    await startServer(options.installDir);
+  });
 
 program.parse();

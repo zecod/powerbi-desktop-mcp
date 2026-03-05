@@ -1,165 +1,279 @@
 # powerbi-desktop-mcp
 
-CLI tool to automatically download, install and configure the **Power BI Desktop MCP Server** for Claude Desktop and Claude Code.
+[![npm version](https://img.shields.io/npm/v/powerbi-desktop-mcp.svg)](https://www.npmjs.com/package/powerbi-desktop-mcp)
+[![npm downloads](https://img.shields.io/npm/dm/powerbi-desktop-mcp.svg)](https://www.npmjs.com/package/powerbi-desktop-mcp)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## Install
+CLI tool to install, configure and extend the **Power BI Desktop MCP Server** for Claude Desktop and Claude Code.
 
-```bash
-npm install -g powerbi-desktop-mcp
-```
+Registers a **single combined MCP server** that gives Claude access to:
+- All Microsoft Power BI modeling tools (connect, query, modify semantic models)
+- `extract_dax` — extract all DAX measures and calculated columns from any open Power BI file
+- CLI commands to extract and translate DAX from the terminal
 
-Or run directly without installing:
+**npm Package**: https://www.npmjs.com/package/powerbi-desktop-mcp
+
+---
+
+## Quick Start
 
 ```bash
 npx powerbi-desktop-mcp install
 ```
 
-## Commands
+This downloads Microsoft's MCP server, extracts it, and asks whether to configure Claude Desktop and/or Claude Code. After that, restart Claude and you're ready.
 
-### Install
-Downloads the MCP server and interactively configures Claude Desktop and/or Claude Code:
+---
+
+## CLI Commands
+
+### `install`
+
+Downloads `powerbi-modeling-mcp.exe` from the VS Code Marketplace and configures Claude.
+
 ```bash
-# If installed globally
-powerbi-desktop-mcp install
-
-# Or run with npx (no installation required)
 npx powerbi-desktop-mcp install
+
+# Custom install directory
+npx powerbi-desktop-mcp install --dir "D:\MyMCPServers\PowerBI"
+
+# Pin a specific version
+npx powerbi-desktop-mcp install --mcp-version 0.4.0
 ```
 
-During installation, you'll be prompted to:
-- **Configure Claude Desktop automatically?** - Adds the MCP server to Claude Desktop's config
-- **Configure Claude Code automatically?** - Adds the MCP server to Claude Code's config
-
-You can choose to configure one, both, or neither (for manual configuration later).
+During install you'll be asked:
+```
+  Configure Power BI MCP for Claude:
+    Configure Claude Desktop? [Y/n]
+    Configure Claude Code?    [Y/n]
+```
 
 Options:
 ```
 -d, --dir <path>          Install directory (default: C:\MCPServers\PowerBIModelingMCP)
--v, --mcp-version <ver>   MCP version to install (default: 0.1.9)
--s, --skip-confirmation   Skip confirmation prompts in MCP server
+-v, --mcp-version <ver>   MCP version to install (default: 0.4.0)
 ```
 
-**Note:** If reinstalling, please close Claude Desktop and Claude Code (VS Code) first to avoid file locking issues.
+> **Note:** Close Claude Desktop and Claude Code before reinstalling to avoid file-lock errors.
 
-### Status
-Check if the MCP is installed and configured:
+---
+
+### `status`
+
+Check whether the MCP server is installed and registered in Claude's config.
+
 ```bash
-# If installed globally
-powerbi-desktop-mcp status
-
-# Or run with npx
 npx powerbi-desktop-mcp status
 ```
 
-### Uninstall
-Remove the MCP server and clean up Claude configs:
-```bash
-# If installed globally
-powerbi-desktop-mcp uninstall
+---
 
-# Or run with npx
+### `uninstall`
+
+Remove the MCP server files and clean up Claude config entries.
+
+```bash
 npx powerbi-desktop-mcp uninstall
 ```
+
+---
+
+### `extract-dax`
+
+Extract all DAX measures and calculated columns from a Power BI model and save them to a `.dax` file.
+
+**Power BI Desktop must be running with your file open.**
+
+```bash
+# Extract from an open Power BI Desktop file
+powerbi-desktop-mcp extract-dax --file "SalesReport"
+
+# Extract from a Fabric workspace
+powerbi-desktop-mcp extract-dax --workspace "Sales Workspace" --model "Sales Model"
+
+# Save to a specific path
+powerbi-desktop-mcp extract-dax --file "SalesReport" --output ./measures.dax
+
+# Extract only measures or only calculated columns
+powerbi-desktop-mcp extract-dax --file "SalesReport" --type measures
+powerbi-desktop-mcp extract-dax --file "SalesReport" --type columns
+
+# Print to stdout
+powerbi-desktop-mcp extract-dax --file "SalesReport" --output stdout
+```
+
+Options:
+```
+-f, --file <name>           Power BI Desktop window title (partial, case-insensitive)
+-w, --workspace <name>      Fabric workspace name
+-m, --model <name>          Semantic model name (required with --workspace)
+-o, --output <path>         Output file path (prompted if not specified)
+-t, --type <type>           all | measures | columns  (default: all)
+-d, --install-dir <path>    MCP server install directory
+```
+
+> Either `--file` OR both `--workspace` and `--model` must be provided.
+>
+> `--file` does a case-insensitive substring match on the Power BI Desktop window title. `--file "Sales"` will match `SalesReport - Power BI Desktop`. If no match is found, available window titles are listed.
+
+---
+
+### `translate-dax`
+
+Extract DAX from a Power BI model and translate it to **Qlik Sense QVS** format using the Claude API. Useful for migrating from Power BI to Qlik Sense.
+
+**Prerequisites:**
+- Power BI Desktop must be running with your file open
+- An [Anthropic API key](https://console.anthropic.com) set as `ANTHROPIC_API_KEY`
+
+```bash
+# Translate all DAX from an open file
+powerbi-desktop-mcp translate-dax --file "SalesReport"
+
+# Save to a specific path
+powerbi-desktop-mcp translate-dax --file "SalesReport" --output ./sales-qlik.qvs
+
+# Translate from a Fabric workspace
+powerbi-desktop-mcp translate-dax --workspace "Sales Workspace" --model "Sales Model"
+```
+
+Options:
+```
+-f, --file <name>         Power BI Desktop window title (partial, case-insensitive)
+-w, --workspace <name>    Fabric workspace name
+-m, --model <name>        Semantic model name (required with --workspace)
+-o, --output <path>       Output .qvs file path (prompted if not specified)
+-d, --install-dir <path>  MCP server install directory
+```
+
+**Set the API key:**
+```powershell
+# PowerShell
+$env:ANTHROPIC_API_KEY="sk-ant-..."
+
+# bash/zsh
+export ANTHROPIC_API_KEY="sk-ant-..."
+
+# CMD
+set ANTHROPIC_API_KEY=sk-ant-...
+```
+
+**Output format** — the generated `.qvs` file has two sections:
+
+```qvs
+// ============================================================
+// QLIK SENSE EXPRESSIONS  (translated from Power BI DAX)
+// ============================================================
+
+// [Total Sales]  (Table: Sales)
+// DAX:  SUM(Sales[Amount])
+Sum(Amount)
+
+// [% of Total]  (Table: Sales)
+// DAX:  DIVIDE(SUM(Sales[Amount]), CALCULATE(SUM(Sales[Amount]), ALL(Sales)), 0)
+// NOTE: ALL() translated using TOTAL keyword
+If(Sum(TOTAL Amount)=0, 0, Sum(Amount)/Sum(TOTAL Amount))
+
+
+// ============================================================
+// QVS LOAD SCRIPT  (calculated columns)
+// ============================================================
+
+LOAD
+    *,
+    // [Profit Margin]  (Table: Sales)
+    // DAX:  [Profit]/[Revenue]
+    Profit/Revenue AS [Profit Margin]
+FROM [your-data-source] (qvd);
+```
+
+> Complex DAX patterns are translated as closely as possible. The AI adds `// NOTE:` comments on lines that may need manual review. Always validate output before using it in production.
+
+---
+
+## Using with Claude Desktop / Claude Code
+
+After install, Claude gets access to a single MCP server with everything built in:
+
+| Tool | What Claude can do |
+|------|-------------------|
+| `connect_to_desktop` | Connect to an open Power BI Desktop file |
+| `table_operations` | List, get and modify tables |
+| `measure_operations` | List, get, create and update DAX measures |
+| `column_operations` | List, get and modify columns |
+| `relationship_operations` | Manage model relationships |
+| `extract_dax` | Extract all DAX measures and calculated columns, ready to translate |
+| *(+ all other Microsoft tools)* | Full modeling capabilities |
+
+**Example prompts:**
+- *"Connect to SalesReport in Power BI Desktop"*
+- *"List all measures in the Sales table"*
+- *"Extract all DAX from my model and translate it to Qlik Sense"*
+- *"Create a new measure called Profit Margin = DIVIDE([Profit], [Revenue])"*
+
+---
 
 ## Requirements
 
 - Windows (win32-x64)
 - Node.js >= 18
-- Power BI Desktop (must be open when using the MCP)
+- Power BI Desktop (must be open when connecting)
 
-## What it does
+---
 
-1. Downloads `powerbi-modeling-mcp.exe` from VS Code Marketplace
-2. Extracts it to the install directory
-3. **Asks if you want to configure Claude Desktop** - Registers it in `%APPDATA%\Claude\claude_desktop_config.json`
-4. **Asks if you want to configure Claude Code** - Registers it in `%USERPROFILE%\.claude.json`
+## Manual Configuration
 
-You have full control over which Claude applications get configured during installation.
+If you skipped automatic configuration during install, add the entry manually.
 
-## Usage after install
-
-1. Open Power BI Desktop with your model
-2. Restart Claude Desktop or Claude Code
-3. Say: **Connect to [your-file-name] in Power BI Desktop**
-
-## ⚙️ MCP Server Settings
-
-The MCP server supports several command line options and environment variables that can be configured during installation:
-
-### Command Line Options
-
-| Command line option | Default | Description |
-|-------------------|---------|-------------|
-| `--start` | | Starts the MCP server; necessary for server registration with MCP client. |
-| `--readwrite` | Yes | Enabled by default, enables write operations with confirmation prompt before applying an edit to your semantic model (once per database). |
-| `--readonly` | | Safe mode, prevents any write operations to your semantic model. |
-| `--skipconfirmation` | | Automatically approves all write operations without confirmation prompts. Only use skip confirmation mode when you're confident about the operations being performed and have appropriate backups of your semantic model. |
-| `--compatibility` | PowerBI | By default, it is optimized for Power BI semantic models. Change the setting to `Full` if you want to run this MCP server against Analysis Services databases. |
-
-### Environment Variables
-
-| Environment variable name | Default | Description |
-|--------------------------|---------|-------------|
-| `PBI_MODELING_MCP_ACCESS_TOKEN` | | When configured, the MCP Server uses the specified access token instead of prompting for authentication when connecting to a semantic model in a Fabric workspace. This is useful in scenarios where the application handles authentication itself. |
-
-### How to Configure
-
-These settings are automatically configured by this installer with sensible defaults. The `--skipconfirmation` flag can be set during installation using the `-s` option:
-
-```bash
-npx powerbi-desktop-mcp install -s
-```
-
-To manually modify these settings after installation, edit the Claude configuration files:
+**Config file locations:**
 - **Claude Desktop**: `%APPDATA%\Claude\claude_desktop_config.json`
 - **Claude Code**: `%USERPROFILE%\.claude.json`
 
-Example configuration:
 ```json
 {
   "mcpServers": {
     "powerbi-desktop-mcp": {
       "type": "stdio",
-      "command": "C:\\MCPServers\\PowerBIModelingMCP\\extension\\server\\powerbi-modeling-mcp.exe",
-      "args": ["--start", "--skipconfirmation"],
-      "env": {
-        "PBI_MODELING_MCP_ACCESS_TOKEN": "your-token-here"
-      }
+      "command": "npx",
+      "args": ["powerbi-desktop-mcp", "serve", "--install-dir", "C:\\MCPServers\\PowerBIModelingMCP"],
+      "env": {}
     }
   }
 }
 ```
 
+> Adjust `--install-dir` if you used a custom install path.
+
+---
+
 ## About
 
-This CLI tool automates the installation and configuration of the **Power BI Modeling MCP Server** developed by Microsoft. The MCP server brings Power BI semantic modeling capabilities to AI agents, enabling natural language interactions with Power BI Desktop and Fabric semantic models.
+This package installs and wraps Microsoft's **Power BI Modeling MCP Server**, adding extra tools and CLI commands on top.
 
-### Official MCP Server
+### Official MCP Server (by Microsoft)
 
-The underlying Power BI Modeling MCP Server is developed and maintained by Microsoft:
-
-- **GitHub Repository**: [microsoft/powerbi-modeling-mcp](https://github.com/microsoft/powerbi-modeling-mcp)
+- **GitHub**: [microsoft/powerbi-modeling-mcp](https://github.com/microsoft/powerbi-modeling-mcp)
 - **VS Code Extension**: [Power BI Modeling MCP](https://marketplace.visualstudio.com/items?itemName=analysis-services.powerbi-modeling-mcp)
 - **License**: MIT
 
-### What the MCP Server Does
+### What Microsoft's server supports
 
-- 🔄 **Build and modify semantic models** with natural language
-- ⚡ **Execute bulk operations** at scale across hundreds of objects
-- ✅ **Apply modeling best practices** to your Power BI models
-- 🤖 **Enable agentic workflows** with TMDL and Power BI Project files
-- 🔍 **Query and validate DAX** against your semantic models
+- Build and modify semantic models with natural language
+- Execute bulk operations across hundreds of objects
+- Apply modeling best practices
+- Enable agentic workflows with TMDL and Power BI Project files
+- Query and validate DAX against your semantic models
 
-For complete documentation, capabilities, and examples, visit the [official repository](https://github.com/microsoft/powerbi-modeling-mcp).
+### What this package adds
 
-### What This CLI Does
+- Automatic download and installation of the MCP server
+- One-step configuration for Claude Desktop and Claude Code
+- `extract_dax` MCP tool — extracts all DAX in one call for Claude to translate
+- `extract-dax` CLI — save DAX to a file from the terminal
+- `translate-dax` CLI — translate DAX to Qlik Sense QVS via Claude API
 
-This `powerbi-desktop-mcp` package simplifies the installation process by:
-1. Automatically downloading the MCP server from VS Code Marketplace
-2. Extracting and setting up the executable
-3. Providing interactive prompts to configure Claude Desktop and/or Claude Code
-4. Managing installation, status checks, and uninstallation
+---
 
 ## Contributing
 
-Issues and feature requests for the MCP server itself should be directed to the [official Microsoft repository](https://github.com/microsoft/powerbi-modeling-mcp/issues).
+Issues for the underlying MCP server: [microsoft/powerbi-modeling-mcp/issues](https://github.com/microsoft/powerbi-modeling-mcp/issues)

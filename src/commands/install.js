@@ -12,12 +12,47 @@ import {
   CLAUDE_CODE_CONFIG,
   loadConfig,
   saveConfig,
-  addMcpEntry
+  addTranslatorMcpEntry
 } from "../utils/config.js";
 import { askYesNo } from "../utils/prompt.js";
 
 const DOWNLOAD_URL = (version) =>
   `https://marketplace.visualstudio.com/_apis/public/gallery/publishers/analysis-services/vsextensions/powerbi-modeling-mcp/${version}/vspackage?targetPlatform=win32-x64`;
+
+function fetchLatestVersion() {
+  return new Promise((resolve) => {
+    const body = JSON.stringify({
+      filters: [{ criteria: [{ filterType: 7, value: "analysis-services.powerbi-modeling-mcp" }] }],
+      flags: 0x200
+    });
+    const req = https.request({
+      hostname: "marketplace.visualstudio.com",
+      path: "/_apis/public/gallery/extensionquery",
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json;api-version=3.0-preview.1",
+        "Content-Length": Buffer.byteLength(body)
+      }
+    }, (res) => {
+      let data = "";
+      res.on("data", (chunk) => { data += chunk; });
+      res.on("end", () => {
+        try {
+          const parsed = JSON.parse(data);
+          const version = parsed.results?.[0]?.extensions?.[0]?.versions?.[0]?.version;
+          resolve(version || null);
+        } catch {
+          resolve(null);
+        }
+      });
+    });
+    req.on("error", () => resolve(null));
+    req.setTimeout(5000, () => { req.destroy(); resolve(null); });
+    req.write(body);
+    req.end();
+  });
+}
 
 function download(url, destPath) {
   return new Promise((resolve, reject) => {
@@ -63,20 +98,35 @@ function findExe(dir) {
 export async function install(options) {
   banner();
 
-  const installDir  = options.dir;
-  const version     = options.mcpVersion;
-  const skipConfirm = options.skipConfirmation || false;
-  const tmpZip      = path.join(os.tmpdir(), "powerbi-modeling-mcp.zip");
+  const installDir = options.dir;
+  const version    = options.mcpVersion;
+  const tmpZip     = path.join(os.tmpdir(), "powerbi-modeling-mcp.zip");
 
-  info(`Version  : ${version}`);
+  // ── Check for latest version ─────────────────────────────────
+  const checkSpinner = ora({ text: "Checking for latest version...", stream: process.stdout }).start();
+  const latestVersion = await fetchLatestVersion();
+  checkSpinner.stop();
+
+  let versionToInstall = version;
+  if (latestVersion && latestVersion !== version) {
+    ok(`Latest version available: v${latestVersion} (default: v${version})`);
+    const useLatest = await askYesNo(`Install latest v${latestVersion} instead?`, true);
+    if (useLatest) versionToInstall = latestVersion;
+  } else if (latestVersion) {
+    ok(`v${version} is up to date`);
+  } else {
+    warn("Could not check for updates — proceeding with default version");
+  }
+
+  info(`Version  : ${versionToInstall}`);
   info(`Install  : ${installDir}`);
   console.log("");
 
   // ── Download + decompress ────────────────────────────────────
-  const spinner = ora("Downloading powerbi-modeling-mcp...").start();
+  const spinner = ora({ text: "Downloading powerbi-modeling-mcp...", stream: process.stdout }).start();
   try {
-    await download(DOWNLOAD_URL(version), tmpZip);
-    spinner.succeed(`Downloaded v${version}`);
+    await download(DOWNLOAD_URL(versionToInstall), tmpZip);
+    spinner.succeed(`Downloaded v${versionToInstall}`);
   } catch (e) {
     spinner.fail(`Download failed: ${e.message}`);
     process.exit(1);
@@ -134,14 +184,17 @@ export async function install(options) {
 
   // ── Ask user about Claude configuration ──────────────────────
   console.log("");
-  const configureClaudeDesktop = await askYesNo("Configure Claude Desktop automatically?", true);
-  const configureClaudeCode = await askYesNo("Configure Claude Code automatically?", true);
+  console.log(chalk.cyan("  Configure Power BI MCP for Claude:"));
+  const configureClaudeDesktop = await askYesNo("  Configure Claude Desktop?", true);
+  const configureClaudeCode = await askYesNo("  Configure Claude Code?", true);
   console.log("");
 
   // ── Configure Claude Desktop ─────────────────────────────────
   if (configureClaudeDesktop) {
     step("Configuring Claude Desktop...");
-    saveConfig(CLAUDE_DESKTOP_CONFIG, addMcpEntry(loadConfig(CLAUDE_DESKTOP_CONFIG), exePath, skipConfirm));
+    let cfg = loadConfig(CLAUDE_DESKTOP_CONFIG);
+    cfg = addTranslatorMcpEntry(cfg, installDir);
+    saveConfig(CLAUDE_DESKTOP_CONFIG, cfg);
     ok(`Saved: ${CLAUDE_DESKTOP_CONFIG}`);
   } else {
     info("Skipped Claude Desktop configuration");
@@ -150,7 +203,9 @@ export async function install(options) {
   // ── Configure Claude Code ────────────────────────────────────
   if (configureClaudeCode) {
     step("Configuring Claude Code...");
-    saveConfig(CLAUDE_CODE_CONFIG, addMcpEntry(loadConfig(CLAUDE_CODE_CONFIG), exePath, skipConfirm));
+    let cfg = loadConfig(CLAUDE_CODE_CONFIG);
+    cfg = addTranslatorMcpEntry(cfg, installDir);
+    saveConfig(CLAUDE_CODE_CONFIG, cfg);
     ok(`Saved: ${CLAUDE_CODE_CONFIG}`);
   } else {
     info("Skipped Claude Code configuration");
@@ -168,15 +223,25 @@ export async function install(options) {
   info(`EXE            : ${exePath}`);
   if (configureClaudeDesktop) {
     info(`Claude Desktop : ${CLAUDE_DESKTOP_CONFIG}`);
+    info(`  ✔ Power BI MCP (modeling + extract_dax)`);
   }
   if (configureClaudeCode) {
     info(`Claude Code    : ${CLAUDE_CODE_CONFIG}`);
+    info(`  ✔ Power BI MCP (modeling + extract_dax)`);
   }
   if (!configureClaudeDesktop && !configureClaudeCode) {
     console.log("");
-    console.log(chalk.yellow("  Manual configuration required:"));
-    info(`Add the MCP server to your Claude config manually.`);
-    info(`EXE path: ${exePath}`);
+    console.log(chalk.yellow("  Manual configuration required."));
+    console.log(chalk.gray("  Edit %APPDATA%\\Claude\\claude_desktop_config.json or %USERPROFILE%\\.claude.json"));
+    console.log("");
+    console.log(chalk.gray('  "mcpServers": {'));
+    console.log(chalk.gray('    "powerbi-desktop-mcp": {'));
+    console.log(chalk.gray('      "type": "stdio",'));
+    console.log(chalk.gray('      "command": "npx",'));
+    console.log(chalk.gray(`      "args": ["powerbi-desktop-mcp", "serve", "--install-dir", "${installDir.replace(/\\/g, "\\\\")}"],`));
+    console.log(chalk.gray('      "env": {}'));
+    console.log(chalk.gray('    }'));
+    console.log(chalk.gray('  }'));
   }
   console.log("");
   console.log(chalk.yellow("  Next steps:"));

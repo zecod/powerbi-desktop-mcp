@@ -122,7 +122,6 @@ Desktop.ini
 # Test artifacts - MCP server installation test directory
 C:MCPServersPowerBIModelingMCP/
 CMCPServersPowerBIModelingMCP/
-C*/
 
 # Temporary files
 tmp/
