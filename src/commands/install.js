@@ -12,7 +12,8 @@ import {
   CLAUDE_CODE_CONFIG,
   loadConfig,
   saveConfig,
-  addMcpEntry
+  addMcpEntry,
+  addTranslatorMcpEntry
 } from "../utils/config.js";
 import { askYesNo } from "../utils/prompt.js";
 
@@ -185,23 +186,34 @@ export async function install(options) {
 
   // ── Ask user about Claude configuration ──────────────────────
   console.log("");
-  const configureClaudeDesktop = await askYesNo("Configure Claude Desktop automatically?", true);
-  const configureClaudeCode = await askYesNo("Configure Claude Code automatically?", true);
+  console.log(chalk.cyan("  Power BI Modeling MCP (Microsoft):"));
+  const configureClaudeDesktop = await askYesNo("  Configure Claude Desktop?", true);
+  const configureClaudeCode = await askYesNo("  Configure Claude Code?", true);
+  console.log("");
+  console.log(chalk.cyan("  DAX Translator MCP (AI-powered translation, no API key needed):"));
+  const configureTranslatorDesktop = await askYesNo("  Configure Claude Desktop?", true);
+  const configureTranslatorCode = await askYesNo("  Configure Claude Code?", true);
   console.log("");
 
   // ── Configure Claude Desktop ─────────────────────────────────
-  if (configureClaudeDesktop) {
+  if (configureClaudeDesktop || configureTranslatorDesktop) {
     step("Configuring Claude Desktop...");
-    saveConfig(CLAUDE_DESKTOP_CONFIG, addMcpEntry(loadConfig(CLAUDE_DESKTOP_CONFIG), exePath, skipConfirm));
+    let cfg = loadConfig(CLAUDE_DESKTOP_CONFIG);
+    if (configureClaudeDesktop) cfg = addMcpEntry(cfg, exePath, skipConfirm);
+    if (configureTranslatorDesktop) cfg = addTranslatorMcpEntry(cfg);
+    saveConfig(CLAUDE_DESKTOP_CONFIG, cfg);
     ok(`Saved: ${CLAUDE_DESKTOP_CONFIG}`);
   } else {
     info("Skipped Claude Desktop configuration");
   }
 
   // ── Configure Claude Code ────────────────────────────────────
-  if (configureClaudeCode) {
+  if (configureClaudeCode || configureTranslatorCode) {
     step("Configuring Claude Code...");
-    saveConfig(CLAUDE_CODE_CONFIG, addMcpEntry(loadConfig(CLAUDE_CODE_CONFIG), exePath, skipConfirm));
+    let cfg = loadConfig(CLAUDE_CODE_CONFIG);
+    if (configureClaudeCode) cfg = addMcpEntry(cfg, exePath, skipConfirm);
+    if (configureTranslatorCode) cfg = addTranslatorMcpEntry(cfg);
+    saveConfig(CLAUDE_CODE_CONFIG, cfg);
     ok(`Saved: ${CLAUDE_CODE_CONFIG}`);
   } else {
     info("Skipped Claude Code configuration");
@@ -217,22 +229,40 @@ export async function install(options) {
   console.log(chalk.green("╚══════════════════════════════════════════════╝"));
   console.log("");
   info(`EXE            : ${exePath}`);
-  if (configureClaudeDesktop) {
+  if (configureClaudeDesktop || configureTranslatorDesktop) {
     info(`Claude Desktop : ${CLAUDE_DESKTOP_CONFIG}`);
+    if (configureClaudeDesktop)    info(`  ✔ Power BI Modeling MCP`);
+    if (configureTranslatorDesktop) info(`  ✔ DAX Translator MCP`);
   }
-  if (configureClaudeCode) {
+  if (configureClaudeCode || configureTranslatorCode) {
     info(`Claude Code    : ${CLAUDE_CODE_CONFIG}`);
+    if (configureClaudeCode)    info(`  ✔ Power BI Modeling MCP`);
+    if (configureTranslatorCode) info(`  ✔ DAX Translator MCP`);
   }
-  if (!configureClaudeDesktop && !configureClaudeCode) {
+  if (!configureClaudeDesktop && !configureClaudeCode && !configureTranslatorDesktop && !configureTranslatorCode) {
     console.log("");
-    console.log(chalk.yellow("  Manual configuration required:"));
-    info(`Add the MCP server to your Claude config manually.`);
-    info(`EXE path: ${exePath}`);
+    console.log(chalk.yellow("  Manual configuration required."));
+    console.log(chalk.gray("  Edit %APPDATA%\\Claude\\claude_desktop_config.json or %USERPROFILE%\\.claude.json"));
+    console.log("");
+    console.log(chalk.gray('  "mcpServers": {'));
+    console.log(chalk.gray('    "powerbi-desktop-mcp": {'));
+    console.log(chalk.gray('      "type": "stdio",'));
+    console.log(chalk.gray(`      "command": "${exePath.replace(/\\/g, "\\\\")}",`));
+    console.log(chalk.gray('      "args": ["--start"],'));
+    console.log(chalk.gray('      "env": {}'));
+    console.log(chalk.gray('    },'));
+    console.log(chalk.gray('    "powerbi-dax-translator": {'));
+    console.log(chalk.gray('      "type": "stdio",'));
+    console.log(chalk.gray('      "command": "npx",'));
+    console.log(chalk.gray('      "args": ["powerbi-desktop-mcp", "serve"],'));
+    console.log(chalk.gray('      "env": {}'));
+    console.log(chalk.gray('    }'));
+    console.log(chalk.gray('  }'));
   }
   console.log("");
   console.log(chalk.yellow("  Next steps:"));
   info("1. Open Power BI Desktop with your model");
-  if (configureClaudeDesktop || configureClaudeCode) {
+  if (configureClaudeDesktop || configureClaudeCode || configureTranslatorDesktop || configureTranslatorCode) {
     info("2. Restart Claude Desktop or Claude Code");
   }
   info("3. Say: Connect to your-file-name in Power BI Desktop");

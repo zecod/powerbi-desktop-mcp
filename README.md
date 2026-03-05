@@ -197,6 +197,41 @@ You have full control over which Claude applications get configured during insta
 2. Restart Claude Desktop or Claude Code
 3. Say: **Connect to [your-file-name] in Power BI Desktop**
 
+## Manual Configuration
+
+If you skipped automatic configuration during install, or want to add the MCP servers to a different Claude client, edit the config files directly.
+
+**Config file locations:**
+- **Claude Desktop**: `%APPDATA%\Claude\claude_desktop_config.json`
+- **Claude Code**: `%USERPROFILE%\.claude.json`
+
+Add the servers you want under the `mcpServers` key:
+
+```json
+{
+  "mcpServers": {
+    "powerbi-desktop-mcp": {
+      "type": "stdio",
+      "command": "C:\\MCPServers\\PowerBIModelingMCP\\extension\\server\\powerbi-modeling-mcp.exe",
+      "args": ["--start"],
+      "env": {}
+    },
+    "powerbi-dax-translator": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["powerbi-desktop-mcp", "serve"],
+      "env": {}
+    }
+  }
+}
+```
+
+> **Note:** Replace the `powerbi-desktop-mcp` command path with the actual `.exe` location from your install directory. The `powerbi-dax-translator` entry uses `npx` and always picks up the latest installed version automatically.
+
+You can add either or both servers — they are independent.
+
+---
+
 ## ⚙️ MCP Server Settings
 
 The MCP server supports several command line options and environment variables that can be configured during installation:

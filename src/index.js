@@ -52,4 +52,12 @@ program
   .option("-d, --install-dir <path>", "MCP server install directory", "C:\\MCPServers\\PowerBIModelingMCP")
   .action(translateDax);
 
+program
+  .command("serve")
+  .description("Start the DAX translator MCP server (used by Claude Desktop / Claude Code)")
+  .action(async () => {
+    // Dynamically import to avoid loading server deps in other commands
+    await import("./server.js");
+  });
+
 program.parse();

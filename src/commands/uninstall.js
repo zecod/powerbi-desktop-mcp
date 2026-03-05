@@ -6,7 +6,8 @@ import {
   CLAUDE_CODE_CONFIG,
   loadConfig,
   saveConfig,
-  removeMcpEntry
+  removeMcpEntry,
+  removeTranslatorMcpEntry
 } from "../utils/config.js";
 
 export async function uninstall(options) {
@@ -18,9 +19,11 @@ export async function uninstall(options) {
 
   // ── Remove from Claude Desktop ───────────────────────────────
   step("Removing from Claude Desktop config...");
-  const desktopConfig = loadConfig(CLAUDE_DESKTOP_CONFIG);
+  let desktopConfig = loadConfig(CLAUDE_DESKTOP_CONFIG);
   if (desktopConfig?.mcpServers?.["powerbi-desktop-mcp"]) {
-    saveConfig(CLAUDE_DESKTOP_CONFIG, removeMcpEntry(desktopConfig));
+    desktopConfig = removeMcpEntry(desktopConfig);
+    desktopConfig = removeTranslatorMcpEntry(desktopConfig);
+    saveConfig(CLAUDE_DESKTOP_CONFIG, desktopConfig);
     ok("Removed from Claude Desktop");
     wasConfiguredInDesktop = true;
   } else {
@@ -29,9 +32,11 @@ export async function uninstall(options) {
 
   // ── Remove from Claude Code ──────────────────────────────────
   step("Removing from Claude Code config...");
-  const codeConfig = loadConfig(CLAUDE_CODE_CONFIG);
+  let codeConfig = loadConfig(CLAUDE_CODE_CONFIG);
   if (codeConfig?.mcpServers?.["powerbi-desktop-mcp"]) {
-    saveConfig(CLAUDE_CODE_CONFIG, removeMcpEntry(codeConfig));
+    codeConfig = removeMcpEntry(codeConfig);
+    codeConfig = removeTranslatorMcpEntry(codeConfig);
+    saveConfig(CLAUDE_CODE_CONFIG, codeConfig);
     ok("Removed from Claude Code");
     wasConfiguredInCode = true;
   } else {

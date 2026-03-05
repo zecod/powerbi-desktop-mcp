@@ -59,3 +59,21 @@ export function removeMcpEntry(config) {
   }
   return config;
 }
+
+export function addTranslatorMcpEntry(config) {
+  if (!config.mcpServers) config.mcpServers = {};
+  config.mcpServers["powerbi-dax-translator"] = {
+    type: "stdio",
+    command: process.execPath,
+    args: [process.argv[1], "serve"],
+    env: {}
+  };
+  return config;
+}
+
+export function removeTranslatorMcpEntry(config) {
+  if (config.mcpServers) {
+    delete config.mcpServers["powerbi-dax-translator"];
+  }
+  return config;
+}
