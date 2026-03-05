@@ -54,10 +54,11 @@ program
 
 program
   .command("serve")
-  .description("Start the DAX translator MCP server (used by Claude Desktop / Claude Code)")
-  .action(async () => {
-    // Dynamically import to avoid loading server deps in other commands
-    await import("./server.js");
+  .description("Start the combined Power BI MCP server (Microsoft tools + extract_dax)")
+  .option("-d, --install-dir <path>", "MCP server install directory", "C:\\MCPServers\\PowerBIModelingMCP")
+  .action(async (options) => {
+    const { startServer } = await import("./server.js");
+    await startServer(options.installDir);
   });
 
 program.parse();

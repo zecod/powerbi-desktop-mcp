@@ -1,96 +1,138 @@
 #!/usr/bin/env node
 
 /**
- * powerbi-dax-translator MCP Server
+ * powerbi-desktop-mcp — Combined MCP Server
  *
- * Exposes an `extract_dax` tool that Claude Desktop / Claude Code can call.
- * Claude receives the raw DAX and translates it natively — no API key required.
+ * Proxies all tools from Microsoft's powerbi-modeling-mcp.exe AND adds our
+ * own `extract_dax` tool. Claude Desktop / Claude Code only needs one server entry.
  */
 
+import fs from "fs";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { PowerBIMCPClient, getMCPServerPath } from "./utils/mcpClient.js";
 
-const server = new Server(
-  { name: "powerbi-dax-translator", version: "1.0.0" },
-  { capabilities: { tools: {} } }
-);
+// ── Our custom tools ──────────────────────────────────────────────────────────
 
-// ── Tool definitions ─────────────────────────────────────────────────────────
-
-server.setRequestHandler(ListToolsRequestSchema, async () => ({
-  tools: [
-    {
-      name: "extract_dax",
-      description:
-        "Extract all DAX measures and calculated columns from an open Power BI Desktop file or Fabric workspace. " +
-        "Returns the raw DAX expressions so you can translate them to the target format requested by the user " +
-        "(e.g. Qlik Sense QVS, Tableau calculated fields, LookML, etc.). No API key is required — you perform the translation yourself.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          file: {
-            type: "string",
-            description: "Power BI Desktop window title (partial match, case-insensitive). Use this when the file is open in Power BI Desktop."
-          },
-          workspace: {
-            type: "string",
-            description: "Fabric workspace name. Use together with 'model' to connect to a cloud dataset."
-          },
-          model: {
-            type: "string",
-            description: "Fabric semantic model name. Required when using 'workspace'."
-          },
-          install_dir: {
-            type: "string",
-            description: "MCP server install directory. Defaults to C:\\MCPServers\\PowerBIModelingMCP."
-          }
+const CUSTOM_TOOLS = [
+  {
+    name: "extract_dax",
+    description:
+      "Extract all DAX measures and calculated columns from an open Power BI Desktop file or Fabric workspace. " +
+      "Returns the raw DAX expressions so you can translate them to the target format requested by the user " +
+      "(e.g. Qlik Sense QVS, Tableau calculated fields, LookML, etc.). No API key is required — you perform the translation yourself.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        file: {
+          type: "string",
+          description: "Power BI Desktop window title (partial match, case-insensitive). Use this when the file is open in Power BI Desktop."
         },
-        required: []
-      }
+        workspace: {
+          type: "string",
+          description: "Fabric workspace name. Use together with 'model' to connect to a cloud dataset."
+        },
+        model: {
+          type: "string",
+          description: "Fabric semantic model name. Required when using 'workspace'."
+        }
+      },
+      required: []
     }
-  ]
-}));
+  }
+];
 
-// ── Tool handler ─────────────────────────────────────────────────────────────
+// ── Main entry point ──────────────────────────────────────────────────────────
 
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  if (request.params.name !== "extract_dax") {
-    throw new Error(`Unknown tool: ${request.params.name}`);
+export async function startServer(installDir) {
+  const mcpServerPath = getMCPServerPath(installDir || null);
+
+  // ── Connect to Microsoft's EXE as a proxy client ─────────────────────────
+  let proxyClient = null;
+  let microsoftTools = [];
+
+  if (fs.existsSync(mcpServerPath)) {
+    try {
+      const transport = new StdioClientTransport({
+        command: mcpServerPath,
+        args: ["--start"],
+        env: process.env,
+        stderr: "ignore"
+      });
+      proxyClient = new Client(
+        { name: "powerbi-proxy", version: "1.0.0" },
+        { capabilities: {} }
+      );
+      await proxyClient.connect(transport);
+      const result = await proxyClient.listTools();
+      microsoftTools = result.tools ?? [];
+    } catch (err) {
+      process.stderr.write(`Warning: Could not connect to powerbi-modeling-mcp.exe: ${err.message}\n`);
+      proxyClient = null;
+    }
+  } else {
+    process.stderr.write(`Warning: powerbi-modeling-mcp.exe not found at ${mcpServerPath}. Microsoft tools unavailable.\n`);
   }
 
-  const { file, workspace, model, install_dir } = request.params.arguments ?? {};
-  const mcpServerPath = getMCPServerPath(install_dir || null);
+  // ── Our MCP server ────────────────────────────────────────────────────────
+  const server = new Server(
+    { name: "powerbi-desktop-mcp", version: "1.0.0" },
+    { capabilities: { tools: {} } }
+  );
+
+  server.setRequestHandler(ListToolsRequestSchema, async () => ({
+    tools: [...CUSTOM_TOOLS, ...microsoftTools]
+  }));
+
+  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    const { name, arguments: args } = request.params;
+
+    if (name === "extract_dax") {
+      return handleExtractDax(args, mcpServerPath);
+    }
+
+    if (proxyClient) {
+      return await proxyClient.callTool({ name, arguments: args ?? {} });
+    }
+
+    return {
+      content: [{ type: "text", text: `Tool '${name}' unavailable: powerbi-modeling-mcp.exe is not running.` }],
+      isError: true
+    };
+  });
+
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+}
+
+// ── extract_dax handler ───────────────────────────────────────────────────────
+
+async function handleExtractDax({ file, workspace, model } = {}, mcpServerPath) {
+  if (!file && !(workspace && model)) {
+    return {
+      content: [{ type: "text", text: "Please provide either 'file' (Power BI Desktop window title) or both 'workspace' and 'model' (Fabric)." }],
+      isError: true
+    };
+  }
 
   const client = new PowerBIMCPClient(mcpServerPath);
-
   try {
     await client.start();
 
-    // Connect to the data source
     if (file) {
       await client.connectToPowerBIDesktop(file);
-    } else if (workspace && model) {
-      await client.connectToFabric(workspace, model);
     } else {
-      return {
-        content: [{
-          type: "text",
-          text: "Please provide either 'file' (Power BI Desktop window title) or both 'workspace' and 'model' (Fabric)."
-        }],
-        isError: true
-      };
+      await client.connectToFabric(workspace, model);
     }
 
-    // Extract measures
     const measures = await client.listMeasures();
-    // Extract calculated columns
     const calcColumnGroups = await client.listCalculatedColumns();
 
     await client.stop();
 
-    // Build the response text
     const modelName = file || `${workspace}/${model}`;
     const lines = [];
 
@@ -131,9 +173,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       lines.push("No measures or calculated columns found in this model.");
     }
 
-    return {
-      content: [{ type: "text", text: lines.join("\n") }]
-    };
+    return { content: [{ type: "text", text: lines.join("\n") }] };
 
   } catch (error) {
     try { await client.stop(); } catch {}
@@ -142,9 +182,4 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       isError: true
     };
   }
-});
-
-// ── Start ─────────────────────────────────────────────────────────────────────
-
-const transport = new StdioServerTransport();
-await server.connect(transport);
+}

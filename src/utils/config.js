@@ -60,12 +60,12 @@ export function removeMcpEntry(config) {
   return config;
 }
 
-export function addTranslatorMcpEntry(config) {
+export function addTranslatorMcpEntry(config, installDir) {
   if (!config.mcpServers) config.mcpServers = {};
-  config.mcpServers["powerbi-dax-translator"] = {
+  config.mcpServers["powerbi-desktop-mcp"] = {
     type: "stdio",
     command: process.execPath,
-    args: [process.argv[1], "serve"],
+    args: [process.argv[1], "serve", "--install-dir", installDir],
     env: {}
   };
   return config;
