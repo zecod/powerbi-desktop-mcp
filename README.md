@@ -103,6 +103,79 @@ Options:
 
 **How `--file` matching works:** The value is matched as a case-insensitive substring against the window title of all running Power BI Desktop instances. For example, `--file "Sales"` will match a window titled `SalesReport - Power BI Desktop`. If no match is found, the error message lists all available window titles so you can pick the right one.
 
+### Translate DAX to Qlik Sense
+Translate DAX measures and calculated columns from a Power BI model to Qlik Sense QVS format, powered by Claude AI. Useful for migrating from Power BI to Qlik Sense.
+
+**Prerequisites:**
+- Power BI Desktop must be running with your file open
+- An [Anthropic API key](https://console.anthropic.com) set as `ANTHROPIC_API_KEY`
+
+```bash
+# Translate all DAX from an open Power BI Desktop file
+powerbi-desktop-mcp translate-dax --file "SalesReport"
+
+# Translate and save to a specific path
+powerbi-desktop-mcp translate-dax --file "SalesReport" --output ./sales-qlik.qvs
+
+# Translate from a Fabric workspace
+powerbi-desktop-mcp translate-dax --workspace "Sales Workspace" --model "Sales Model"
+```
+
+Options:
+```
+-f, --file <name>         Power BI Desktop window title (partial match, case-insensitive)
+-w, --workspace <name>    Fabric workspace name
+-m, --model <name>        Semantic model name (required with --workspace)
+-o, --output <path>       Output .qvs file path (prompted interactively if not specified)
+-d, --install-dir <path>  MCP server install directory
+```
+
+**Setting the API key:**
+```powershell
+# PowerShell
+$env:ANTHROPIC_API_KEY="sk-ant-..."
+
+# bash/zsh
+export ANTHROPIC_API_KEY="sk-ant-..."
+
+# CMD
+set ANTHROPIC_API_KEY=sk-ant-...
+```
+
+**Output format:** The generated `.qvs` file contains two sections:
+- **Qlik Sense Expressions** — DAX measures translated to Set Analysis expressions (for use in charts and KPIs)
+- **QVS Load Script** — DAX calculated columns translated to LOAD statement fields
+
+Example output:
+```qvs
+// ============================================================
+// QLIK SENSE EXPRESSIONS  (translated from Power BI DAX)
+// ============================================================
+
+// [Total Sales]  (Table: Sales)
+// DAX:  SUM(Sales[Amount])
+Sum(Amount)
+
+// [% of Total]  (Table: Sales)
+// DAX:  DIVIDE(SUM(Sales[Amount]), CALCULATE(SUM(Sales[Amount]), ALL(Sales)), 0)
+// NOTE: ALL() translated using TOTAL keyword
+If(Sum(TOTAL Amount)=0, 0, Sum(Amount)/Sum(TOTAL Amount))
+
+
+// ============================================================
+// QVS LOAD SCRIPT  (calculated columns)
+// ============================================================
+
+LOAD
+    *,
+    // [Profit Margin]  (Table: Sales)
+    // DAX:  [Profit]/[Revenue]
+    Profit/Revenue AS [Profit Margin]
+FROM [your-data-source] (qvd);
+```
+
+> **Note:** Complex DAX patterns (e.g. `CALCULATE` with multiple filters, time-intelligence functions) are translated as closely as possible. Always review the output before using it in production — the AI will add `// NOTE:` comments on lines that may need manual adjustment.
+
 ## Requirements
 
 - Windows (win32-x64)

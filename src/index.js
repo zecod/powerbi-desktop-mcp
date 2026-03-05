@@ -5,6 +5,7 @@ import { install } from "./commands/install.js";
 import { uninstall } from "./commands/uninstall.js";
 import { status } from "./commands/status.js";
 import { extractDax } from "./commands/extractDax.js";
+import { translateDax } from "./commands/translateDax.js";
 
 program
   .name("powerbi-desktop-mcp")
@@ -40,5 +41,15 @@ program
   .option("-t, --type <type>", "Extract type: all, measures, columns (default: all)", "all")
   .option("-d, --install-dir <path>", "MCP server install directory", "C:\\MCPServers\\PowerBIModelingMCP")
   .action(extractDax);
+
+program
+  .command("translate-dax")
+  .description("Translate DAX measures and calculated columns to Qlik Sense QVS")
+  .option("-f, --file <name>", "Power BI Desktop file name")
+  .option("-w, --workspace <name>", "Fabric workspace name")
+  .option("-m, --model <name>", "Semantic model name")
+  .option("-o, --output <path>", "Output .qvs file path (prompted if not set)")
+  .option("-d, --install-dir <path>", "MCP server install directory", "C:\\MCPServers\\PowerBIModelingMCP")
+  .action(translateDax);
 
 program.parse();
