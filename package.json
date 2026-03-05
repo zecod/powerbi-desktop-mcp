@@ -1,6 +1,6 @@
 {
   "name": "powerbi-desktop-mcp",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "CLI installer for Power BI Desktop MCP Server — auto downloads, installs and configures for Claude Desktop and Claude Code",
   "type": "module",
   "bin": {
