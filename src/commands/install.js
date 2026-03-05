@@ -19,6 +19,41 @@ import { askYesNo } from "../utils/prompt.js";
 const DOWNLOAD_URL = (version) =>
   `https://marketplace.visualstudio.com/_apis/public/gallery/publishers/analysis-services/vsextensions/powerbi-modeling-mcp/${version}/vspackage?targetPlatform=win32-x64`;
 
+function fetchLatestVersion() {
+  return new Promise((resolve) => {
+    const body = JSON.stringify({
+      filters: [{ criteria: [{ filterType: 7, value: "analysis-services.powerbi-modeling-mcp" }] }],
+      flags: 0x200
+    });
+    const req = https.request({
+      hostname: "marketplace.visualstudio.com",
+      path: "/_apis/public/gallery/extensionquery",
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json;api-version=3.0-preview.1",
+        "Content-Length": Buffer.byteLength(body)
+      }
+    }, (res) => {
+      let data = "";
+      res.on("data", (chunk) => { data += chunk; });
+      res.on("end", () => {
+        try {
+          const parsed = JSON.parse(data);
+          const version = parsed.results?.[0]?.extensions?.[0]?.versions?.[0]?.version;
+          resolve(version || null);
+        } catch {
+          resolve(null);
+        }
+      });
+    });
+    req.on("error", () => resolve(null));
+    req.setTimeout(5000, () => { req.destroy(); resolve(null); });
+    req.write(body);
+    req.end();
+  });
+}
+
 function download(url, destPath) {
   return new Promise((resolve, reject) => {
     const request = (u) => {
@@ -68,15 +103,31 @@ export async function install(options) {
   const skipConfirm = options.skipConfirmation || false;
   const tmpZip      = path.join(os.tmpdir(), "powerbi-modeling-mcp.zip");
 
-  info(`Version  : ${version}`);
+  // ── Check for latest version ─────────────────────────────────
+  const checkSpinner = ora({ text: "Checking for latest version...", stream: process.stdout }).start();
+  const latestVersion = await fetchLatestVersion();
+  checkSpinner.stop();
+
+  let versionToInstall = version;
+  if (latestVersion && latestVersion !== version) {
+    ok(`Latest version available: v${latestVersion} (default: v${version})`);
+    const useLatest = await askYesNo(`Install latest v${latestVersion} instead?`, true);
+    if (useLatest) versionToInstall = latestVersion;
+  } else if (latestVersion) {
+    ok(`v${version} is up to date`);
+  } else {
+    warn("Could not check for updates — proceeding with default version");
+  }
+
+  info(`Version  : ${versionToInstall}`);
   info(`Install  : ${installDir}`);
   console.log("");
 
   // ── Download + decompress ────────────────────────────────────
   const spinner = ora({ text: "Downloading powerbi-modeling-mcp...", stream: process.stdout }).start();
   try {
-    await download(DOWNLOAD_URL(version), tmpZip);
-    spinner.succeed(`Downloaded v${version}`);
+    await download(DOWNLOAD_URL(versionToInstall), tmpZip);
+    spinner.succeed(`Downloaded v${versionToInstall}`);
   } catch (e) {
     spinner.fail(`Download failed: ${e.message}`);
     process.exit(1);
