@@ -15,7 +15,7 @@ program
   .command("install")
   .description("Download, install and configure powerbi-modeling-mcp")
   .option("-d, --dir <path>", "Install directory", "C:\\MCPServers\\PowerBIModelingMCP")
-  .option("-v, --mcp-version <version>", "MCP version to install", "0.1.9")
+  .option("-v, --mcp-version <version>", "MCP version to install", "0.4.0")
   .option("-s, --skip-confirmation", "Skip confirmation prompts in MCP server")
   .action(install);
 

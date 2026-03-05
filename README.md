@@ -41,7 +41,7 @@ You can choose to configure one, both, or neither (for manual configuration late
 Options:
 ```
 -d, --dir <path>          Install directory (default: C:\MCPServers\PowerBIModelingMCP)
--v, --mcp-version <ver>   MCP version to install (default: 0.1.9)
+-v, --mcp-version <ver>   MCP version to install (default: 0.4.0)
 -s, --skip-confirmation   Skip confirmation prompts in MCP server
 ```
 
@@ -94,7 +94,7 @@ Options:
 -f, --file <name>           Power BI Desktop window title (partial match, case-insensitive)
 -w, --workspace <name>      Fabric workspace name
 -m, --model <name>          Semantic model name (required with --workspace)
--o, --output <path>         Output file path (default: ./dax-extract.dax)
+-o, --output <path>         Output file path (prompted interactively if not specified)
 -t, --type <type>           Extract type: all, measures, columns (default: all)
 -d, --install-dir <path>    MCP server install directory
 ```

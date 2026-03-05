@@ -59,8 +59,9 @@ export async function extractDax(options) {
           if (measure.description || measure.Description) {
             daxContent.push(`-- Description: ${measure.description || measure.Description}`);
           }
-          if (measure.table || measure.Table) {
-            daxContent.push(`-- Table: ${measure.table || measure.Table}`);
+          const measureTable = measure.tableName || measure.table || measure.Table;
+          if (measureTable) {
+            daxContent.push(`-- Table: ${measureTable}`);
           }
           daxContent.push(measure.expression || measure.Expression || "");
           daxContent.push("");
@@ -74,47 +75,30 @@ export async function extractDax(options) {
     // Extract calculated columns
     if (!type || type === "all" || type === "columns") {
       info("Extracting calculated columns...");
-      const tables = await client.listTables();
-      
-      if (tables && tables.length > 0) {
-        let columnCount = 0;
-        
+      const tableGroups = await client.listCalculatedColumns();
+      let columnCount = 0;
+
+      if (tableGroups && tableGroups.length > 0) {
         daxContent.push("-- ========================================");
         daxContent.push("-- CALCULATED COLUMNS");
         daxContent.push("-- ========================================\n");
-        
-        for (const table of tables) {
-          const tableName = table.name || table.Name;
-          const columns = table.columns || table.Columns || [];
-          
-          if (columns.length > 0) {
-            const calcColumns = columns.filter(c => 
-              (c.type === "calculated" || c.Type === "Calculated") && 
-              (c.expression || c.Expression)
-            );
-            
-            if (calcColumns.length > 0) {
-              daxContent.push(`-- Table: ${tableName}`);
-              for (const col of calcColumns) {
-                daxContent.push(`-- Column: ${col.name || col.Name}`);
-                if (col.description || col.Description) {
-                  daxContent.push(`-- Description: ${col.description || col.Description}`);
-                }
-                daxContent.push(col.expression || col.Expression || "");
-                daxContent.push("");
-                columnCount++;
-              }
+
+        for (const group of tableGroups) {
+          const tableName = group.name;
+          daxContent.push(`-- Table: ${tableName}`);
+          for (const col of group.columns) {
+            daxContent.push(`-- Column: ${col.name || col.Name}`);
+            if (col.description || col.Description) {
+              daxContent.push(`-- Description: ${col.description || col.Description}`);
             }
+            daxContent.push(col.expression || col.Expression || "");
+            daxContent.push("");
+            columnCount++;
           }
         }
-        
-        if (columnCount > 0) {
-          ok(`Extracted ${columnCount} calculated columns`);
-        } else {
-          warn("No calculated columns found");
-        }
+        ok(`Extracted ${columnCount} calculated columns`);
       } else {
-        warn("No tables found");
+        warn("No calculated columns found");
       }
     }
 
